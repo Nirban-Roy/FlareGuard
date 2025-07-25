@@ -5,19 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FlareGuard | Fire Detection System</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #ff4d4d;
             --primary-dark: #cc0000;
-            --secondary: #2c3e50;
+            --secondary: #1a2a3a;
             --light: #ecf0f1;
-            --dark: #1a1a1a;
+            --dark: #121212;
             --success: #27ae60;
             --warning: #f39c12;
             --danger: #e74c3c;
-            --card-bg: rgba(255, 255, 255, 0.08);
+            --card-bg: rgba(0, 0, 0, 0.3);
             --card-border: rgba(255, 255, 255, 0.1);
+            --neon-glow: 0 0 10px rgba(255, 77, 77, 0.8);
         }
 
         * { 
@@ -28,312 +29,294 @@
 
         body {
             font-family: 'Montserrat', sans-serif;
-            background-color: var(--secondary);
+            background: linear-gradient(135deg, var(--secondary), #0d1520);
             color: var(--light);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             line-height: 1.6;
+            text-align: center;
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: auto;
-            padding: 3rem 2rem;
+            padding: 2rem;
             flex: 1;
             display: flex;
             flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         header {
             text-align: center;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
+            width: 100%;
         }
 
         h1 {
-            font-size: 2.8rem;
-            margin-bottom: 0.8rem;
-            background: linear-gradient(45deg, var(--primary), var(--warning));
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, var(--primary), #ff9966);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px rgba(255, 77, 77, 0.5);
+            text-transform: uppercase;
         }
 
         .tagline {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             opacity: 0.9;
             font-weight: 300;
+            letter-spacing: 1px;
+            margin-top: 0.5rem;
         }
 
         .card {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 2.5rem;
-            margin-bottom: 2.5rem;
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+            border-radius: 20px;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            transform: translateY(-5px);
         }
 
         .card h2 {
-            font-size: 1.8rem;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
             margin-bottom: 1.5rem;
             color: var(--light);
-        }
-
-        .card p {
-            font-size: 1.05rem;
-            margin-bottom: 2rem;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .form-group { 
-            margin-bottom: 2rem; 
-        }
-
-        label {
-            display: block;
-            margin-bottom: 0.8rem;
-            font-weight: 600;
-            font-size: 1.05rem;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        input {
-            width: 100%;
-            padding: 1.1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--light);
-            font-size: 1rem;
-        }
-
-        input:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 77, 77, 0.4);
-            box-shadow: 0 0 0 3px rgba(255, 77, 77, 0.2);
-        }
-
-        button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 1.2rem 2rem;
-            border-radius: 10px;
-            font-size: 1.05rem;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            text-transform: uppercase;
+            font-weight: 700;
             letter-spacing: 1px;
-            transition: background 0.3s ease;
         }
 
-        button:hover {
-            background: var(--primary-dark);
-        }
-
-        button:disabled {
-            background: #666;
-            cursor: not-allowed;
-        }
-
-        .status-container { 
-            display: none; 
+        .connection-status {
+            margin: 1.5rem auto;
             text-align: center;
+            padding: 1rem;
+            border-radius: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            width: 90%;
+            max-width: 500px;
         }
 
         .status-indicator {
-            width: 220px;
-            height: 220px;
+            width: 250px;
+            height: 250px;
             border-radius: 50%;
-            margin: 0 auto 3rem;
+            margin: 2rem auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.6rem;
-            font-weight: 600;
-            border: 8px solid rgba(255, 255, 255, 0.1);
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            border: 10px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.5s ease;
+            box-shadow: var(--neon-glow);
         }
 
         .safe { 
             background: var(--success);
-            box-shadow: 0 0 30px rgba(46, 204, 113, 0.3);
+            box-shadow: 0 0 40px rgba(46, 204, 113, 0.5);
         }
 
         .warning { 
             background: var(--warning);
-            box-shadow: 0 0 30px rgba(243, 156, 18, 0.3);
+            box-shadow: 0 0 40px rgba(243, 156, 18, 0.5);
             animation: pulse 2s infinite;
         }
 
         .danger { 
             background: var(--danger);
-            box-shadow: 0 0 30px rgba(231, 76, 60, 0.4);
+            box-shadow: 0 0 40px rgba(231, 76, 60, 0.6);
             animation: alarm 0.8s infinite alternate;
         }
 
         .sensor-data {
             display: flex;
-            justify-content: space-around;
+            justify-content: center;
             margin: 3rem 0;
-            gap: 1.5rem;
+            gap: 2rem;
+            flex-wrap: wrap;
         }
 
         .sensor-box {
-            background: rgba(0, 0, 0, 0.15);
-            padding: 1.5rem;
-            border-radius: 12px;
-            min-width: 160px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2rem 1.5rem;
+            border-radius: 15px;
+            min-width: 180px;
             flex: 1;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .sensor-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
         }
 
         .sensor-box div:first-child {
-            font-size: 1rem;
-            opacity: 0.8;
-            margin-bottom: 0.8rem;
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+            letter-spacing: 0.5px;
         }
 
         .sensor-value {
-            font-size: 2rem;
-            font-weight: 600;
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(45deg, #fff, #ddd);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
 
         #status-message {
-            font-size: 1.2rem;
-            margin-top: 1rem;
-            padding: 1.2rem;
-            border-radius: 8px;
+            font-size: 1.3rem;
+            margin: 2rem auto 0;
+            padding: 1.5rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
 
         .status-safe {
-            background: rgba(46, 204, 113, 0.1);
+            background: rgba(46, 204, 113, 0.15);
             color: #6bff9e;
+            border: 1px solid rgba(46, 204, 113, 0.3);
         }
 
         .status-warning {
-            background: rgba(243, 156, 18, 0.1);
+            background: rgba(243, 156, 18, 0.15);
             color: #ffd166;
+            border: 1px solid rgba(243, 156, 18, 0.3);
         }
 
         .status-danger {
-            background: rgba(231, 76, 60, 0.15);
+            background: rgba(231, 76, 60, 0.2);
             color: #ff6b6b;
-        }
-
-        .config-status {
-            margin-top: 1.5rem;
-            text-align: center;
-            padding: 1rem;
-            border-radius: 8px;
-            font-weight: 500;
+            border: 1px solid rgba(231, 76, 60, 0.4);
         }
 
         .error {
             background: rgba(231, 76, 60, 0.2);
             color: #ff6b6b;
+            border: 1px solid rgba(231, 76, 60, 0.4);
         }
 
         .loading {
             background: rgba(52, 152, 219, 0.2);
             color: #6bb9ff;
+            border: 1px solid rgba(52, 152, 219, 0.3);
         }
 
         .success {
             background: rgba(46, 204, 113, 0.2);
             color: #6bff9e;
+            border: 1px solid rgba(46, 204, 113, 0.3);
         }
 
         @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.03); }
-            100% { transform: scale(1); }
+            0% { transform: scale(1); box-shadow: 0 0 40px rgba(243, 156, 18, 0.5); }
+            50% { transform: scale(1.03); box-shadow: 0 0 50px rgba(243, 156, 18, 0.7); }
+            100% { transform: scale(1); box-shadow: 0 0 40px rgba(243, 156, 18, 0.5); }
         }
 
         @keyframes alarm {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.05); }
+            0% { transform: scale(1); box-shadow: 0 0 40px rgba(231, 76, 60, 0.6); }
+            100% { transform: scale(1.05); box-shadow: 0 0 60px rgba(231, 76, 60, 0.8); }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .floating {
+            animation: float 3s ease-in-out infinite;
         }
 
         @media (max-width: 768px) {
             .container {
-                padding: 2rem 1.5rem;
+                padding: 1.5rem;
             }
             
             h1 {
-                font-size: 2.2rem;
+                font-size: 2.5rem;
             }
             
             .card {
                 padding: 2rem 1.5rem;
             }
             
-            .sensor-data {
-                flex-direction: column;
-                gap: 1rem;
+            .status-indicator {
+                width: 200px;
+                height: 200px;
+                font-size: 1rem;
             }
             
-            .status-indicator {
-                width: 180px;
-                height: 180px;
-                font-size: 1.4rem;
+            .sensor-value {
+                font-size: 2rem;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
+        <header class="floating">
             <h1>FlareGuard</h1>
-            <p class="tagline">Advanced Fire Detection System</p>
+            <p class="tagline">REAL-TIME FIRE DETECTION SYSTEM</p>
         </header>
 
-        <div class="card" id="configCard">
-            <h2>WiFi Configuration</h2>
-            <p>Please enter your WiFi credentials to connect the device</p>
+        <div class="card">
+            <h2>System Monitor</h2>
             
-            <div class="form-group">
-                <label for="wifi-ssid">WiFi Network Name (SSID)</label>
-                <input type="text" id="wifi-ssid" placeholder="Enter your WiFi SSID" required>
+            <div class="connection-status loading" id="connectionStatus">
+                CONNECTING TO MQTT BROKER...
             </div>
-            
-            <div class="form-group">
-                <label for="wifi-password">WiFi Password</label>
-                <input type="password" id="wifi-password" placeholder="Enter your WiFi password" required>
-            </div>
-            
-            <button id="connectBtn">Connect Device</button>
-            <div id="configStatus" class="config-status"></div>
-        </div>
-
-        <div class="card status-container" id="statusCard">
-            <h2>Fire Detection Status</h2>
             
             <div class="status-indicator safe" id="statusIndicator">
-                System Ready
+                SYSTEM READY
             </div>
             
             <div class="sensor-data">
                 <div class="sensor-box">
-                    <div>Smoke Level</div>
+                    <div>SMOKE LEVEL</div>
                     <div class="sensor-value" id="smokeValue">0</div>
                 </div>
                 
                 <div class="sensor-box">
-                    <div>Flame Detected</div>
-                    <div class="sensor-value" id="flameValue">No</div>
+                    <div>FLAME DETECTED</div>
+                    <div class="sensor-value" id="flameValue">NO</div>
                 </div>
             </div>
             
-            <p id="statusMessage" class="status-safe">Awaiting sensor data...</p>
-            
+            <p id="statusMessage" class="status-safe">INITIALIZING SYSTEM...</p>
         </div>
     </div>
 
-    <audio id="alarmAudio">
+    <audio id="alarmAudio" loop>
         <source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" type="audio/ogg">
     </audio>
 
@@ -341,60 +324,43 @@
         // MQTT Configuration
         const mqttBroker = 'wss://test.mosquitto.org:8081/mqtt'; // Public MQTT broker
         let mqttClient = null;
-        let pendingWifiCredentials = null;
 
         // DOM Elements
-        const configCard = document.getElementById('configCard');
-        const statusCard = document.getElementById('statusCard');
-        const connectBtn = document.getElementById('connectBtn');
-        const reconfigureBtn = document.getElementById('reconfigureBtn');
-        const configStatus = document.getElementById('configStatus');
-        const wifiSsidInput = document.getElementById('wifi-ssid');
-        const wifiPasswordInput = document.getElementById('wifi-password');
         const statusIndicator = document.getElementById('statusIndicator');
         const smokeValue = document.getElementById('smokeValue');
         const flameValue = document.getElementById('flameValue');
         const statusMessage = document.getElementById('statusMessage');
         const alarmAudio = document.getElementById('alarmAudio');
+        const connectionStatus = document.getElementById('connectionStatus');
 
         // Thresholds
         const smokeThreshold = 400;
 
         // Initialize MQTT Connection
         function initializeMqtt() {
-            if (mqttClient && mqttClient.connected) {
-                return;
-            }
+            connectionStatus.textContent = 'CONNECTING TO MQTT BROKER...';
+            connectionStatus.className = 'connection-status loading';
 
             mqttClient = mqtt.connect(mqttBroker);
 
             mqttClient.on('connect', () => {
-    console.log('✅ Connected to MQTT broker');
-    configStatus.textContent = '✅ Connected to MQTT broker';
-    configStatus.className = 'config-status success';
-    
-    // Subscribe
-    mqttClient.subscribe('fireDetection/status');
-    mqttClient.subscribe('fireDetection/mq2');
-    mqttClient.subscribe('fireDetection/flame');
-    
-    console.log('✅ Subscribed to topics');
-
-    // Send pending WiFi credentials if any
-    if (pendingWifiCredentials) {
-        sendWifiCredentials(pendingWifiCredentials.ssid, pendingWifiCredentials.password);
-        pendingWifiCredentials = null;
-    }
-});
-
+                console.log('✅ Connected to MQTT broker');
+                connectionStatus.textContent = 'MQTT CONNECTION ESTABLISHED';
+                connectionStatus.className = 'connection-status success';
+                
+                // Subscribe to topics
+                mqttClient.subscribe('fireDetection/mq2');
+                mqttClient.subscribe('fireDetection/flame');
+                
+                console.log('✅ Subscribed to topics');
+                updateStatus('SYSTEM ONLINE AWAITING DATA', 'safe');
+            });
 
             mqttClient.on('message', (topic, message) => {
                 const msg = message.toString();
                 console.log(`📩 ${topic} → ${msg}`);
 
-                if (topic === 'fireDetection/status') {
-                    handleStatusMessage(msg);
-                } else if (topic === 'fireDetection/mq2') {
+                if (topic === 'fireDetection/mq2') {
                     handleSmokeMessage(msg);
                 } else if (topic === 'fireDetection/flame') {
                     handleFlameMessage(msg);
@@ -403,35 +369,17 @@
 
             mqttClient.on('error', (error) => {
                 console.error('MQTT Error:', error);
-                configStatus.textContent = '❌ MQTT Connection Error';
-                configStatus.className = 'config-status error';
-                connectBtn.disabled = false;
+                connectionStatus.textContent = 'MQTT CONNECTION FAILED';
+                connectionStatus.className = 'connection-status error';
+                updateStatus('CONNECTION ERROR - RETRYING', 'danger');
             });
 
             mqttClient.on('close', () => {
                 console.log('MQTT Connection closed');
-                configStatus.textContent = '⚠️ MQTT Connection Closed';
-                configStatus.className = 'config-status loading';
+                connectionStatus.textContent = 'MQTT CONNECTION LOST';
+                connectionStatus.className = 'connection-status loading';
+                updateStatus('CONNECTION LOST - RECONNECTING', 'warning');
             });
-        }
-
-        // Handle status messages
-        function handleStatusMessage(msg) {
-            if (msg === 'connected') {
-                configCard.style.display = 'none';
-                statusCard.style.display = 'block';
-            } else if (msg === 'wifi_failed') {
-                configStatus.textContent = '❌ WiFi connection failed. Check credentials.';
-                configStatus.className = 'config-status error';
-                connectBtn.disabled = false;
-            } else if (msg === 'wifi_success') {
-                configStatus.textContent = '✅ WiFi credentials received by device';
-                configStatus.className = 'config-status success';
-                setTimeout(() => {
-                    configCard.style.display = 'none';
-                    statusCard.style.display = 'block';
-                }, 2000);
-            }
         }
 
         // Handle smoke sensor messages
@@ -440,22 +388,22 @@
             smokeValue.textContent = smoke;
             
             if (smoke > smokeThreshold) {
-                updateStatus('⚠️ Elevated smoke levels detected', 'warning');
-            } else if (flameValue.textContent === 'No') {
-                updateStatus('✅ Environment normal', 'safe');
+                updateStatus('WARNING: ELEVATED SMOKE LEVELS DETECTED', 'warning');
+            } else if (flameValue.textContent === 'NO') {
+                updateStatus('No Fire Detected', 'safe');
             }
         }
 
         // Handle flame sensor messages
         function handleFlameMessage(msg) {
             const fire = msg === '1';
-            flameValue.textContent = fire ? 'Yes' : 'No';
+            flameValue.textContent = fire ? 'YES' : 'NO';
             
             if (fire) {
-                updateStatus('🔥 CRITICAL: Fire detected!', 'danger');
+                updateStatus('CRITICAL: FIRE DETECTED!', 'danger');
                 alarmAudio.play().catch(e => console.log('Audio play failed:', e));
             } else if (parseInt(smokeValue.textContent) <= smokeThreshold) {
-                updateStatus('✅ Environment normal', 'safe');
+                updateStatus('No Fire Detected', 'safe');
                 alarmAudio.pause();
                 alarmAudio.currentTime = 0;
             }
@@ -471,98 +419,50 @@
             statusIndicator.textContent = text.split(':')[0]; // Show only the first part
         }
 
-        // Send WiFi credentials to device
-        function sendWifiCredentials(ssid, password) {
-    if (!mqttClient || !mqttClient.connected) {
-        console.warn("MQTT client not connected yet. Storing credentials.");
-        pendingWifiCredentials = { ssid, password };
-        initializeMqtt();
-        return;
-    }
-
-    const wifiPayload = `${ssid},${password}`;
-    console.log('📡 Sending Wi-Fi credentials to topic: fireDetection/wifi');
-    console.log('📦 Payload:', wifiPayload);
-
-    mqttClient.publish('fireDetection/wifi', wifiPayload, { qos: 0, retain: false }, (err) => {
-        if (err) {
-            console.error('❌ Error publishing WiFi credentials:', err);
-            configStatus.textContent = '❌ Failed to send credentials';
-            configStatus.className = 'config-status error';
-            connectBtn.disabled = false;
-        } else {
-            console.log('✅ WiFi credentials published successfully!');
-            configStatus.textContent = '⏳ Sending credentials to device...';
-            configStatus.className = 'config-status loading';
-        }
-    });
-}
-
-
-        // Handle connect button click
-        connectBtn.addEventListener('click', () => {
-    const ssid = wifiSsidInput.value.trim();
-    const password = wifiPasswordInput.value.trim();
-
-    if (!ssid || !password) {
-        configStatus.textContent = '❌ SSID and Password are required';
-        configStatus.className = 'config-status error';
-        return;
-    }
-
-    configStatus.textContent = '⏳ Connecting to MQTT broker...';
-    configStatus.className = 'config-status loading';
-    connectBtn.disabled = true;
-
-    // Initialize MQTT (it will call sendWifiCredentials inside on connect)
-    pendingWifiCredentials = { ssid, password };
-    initializeMqtt();
-});
-
-        // Always show configuration card on page load
+        // Initialize the MQTT connection when page loads
         window.addEventListener('load', () => {
-            configCard.style.display = 'block';
-            statusCard.style.display = 'none';
+            initializeMqtt();
+            
+            // Add floating animation to status indicator
+            statusIndicator.classList.add('floating');
+        });
+
+        // Disable right-click
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // Disable developer tools
+        document.addEventListener('keydown', function(e) {
+            // Block F12
+            if (e.key === "F12") {
+                e.preventDefault();
+            }
+
+            // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+            if (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) {
+                e.preventDefault();
+            }
+
+            // Block Ctrl+U
+            if (e.ctrlKey && e.key.toUpperCase() === 'U') {
+                e.preventDefault();
+            }
+        });
+
+        // Disable text selection
+        document.addEventListener('selectstart', function(e) {
+            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+            }
+        });
+
+        // Disable image dragging
+        document.addEventListener('dragstart', function(e) {
+            if (e.target.tagName === 'IMG') {
+                e.preventDefault();
+            }
         });
     </script>
-
-<script>
-  document.addEventListener('keydown', function(e) {
-      // Block F12
-      if (e.key === "F12") {
-        e.preventDefault();
-      }
-
-      // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
-      if (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) {
-        e.preventDefault();
-      }
-
-      // Block Ctrl+U
-      if (e.ctrlKey && e.key.toUpperCase() === 'U') {
-        e.preventDefault();
-      }
-    });
-
-    // Disable text selection
-    document.addEventListener('selectstart', function(e) {
-      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-      }
-    });
-
-    // Disable image dragging
-    document.addEventListener('dragstart', function(e) {
-      if (e.target.tagName === 'IMG') {
-        e.preventDefault();
-      }
-    });
-
-    // Disable right-click on images
-    document.querySelectorAll('img').forEach(img => {
-      img.addEventListener('contextmenu', e => e.preventDefault());
-    });
-</script>
-
 </body>
 </html>
