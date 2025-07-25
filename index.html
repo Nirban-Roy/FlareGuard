@@ -420,7 +420,6 @@
             if (msg === 'connected') {
                 configCard.style.display = 'none';
                 statusCard.style.display = 'block';
-                updateStatus('✅ System connected and operational', 'safe');
             } else if (msg === 'wifi_failed') {
                 configStatus.textContent = '❌ WiFi connection failed. Check credentials.';
                 configStatus.className = 'config-status error';
