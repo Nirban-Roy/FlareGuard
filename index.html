@@ -402,6 +402,9 @@
             if (fire) {
                 updateStatus('CRITICAL: FIRE DETECTED!', 'danger');
                 alarmAudio.play().catch(e => console.log('Audio play failed:', e));
+                if (typeof window.FlareGuardChannel !== "undefined") {
+                  window.FlareGuardChannel.postMessage("FIRE_ALARM");
+                }
             } else if (parseInt(smokeValue.textContent) <= smokeThreshold) {
                 updateStatus('No Fire Detected', 'safe');
                 alarmAudio.pause();
