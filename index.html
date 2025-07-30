@@ -360,7 +360,7 @@ function initializeMqtt() {
     if (connected) return;
 
     const broker = mqttBrokers[currentBrokerIndex];
-    connectionStatus.textContent = `Trying Broker (${retryCount + 1}/3): ${broker}`;
+    connectionStatus.textContent = `Trying Server (${retryCount + 1}/3)`;
     connectionStatus.className = 'connection-status loading';
 
     mqttClient = mqtt.connect(broker, {
@@ -371,7 +371,7 @@ function initializeMqtt() {
     mqttClient.on('connect', () => {
         connected = true;
         console.log(`✅ Connected to MQTT broker: ${broker}`);
-        connectionStatus.textContent = `CONNECTED TO BROKER: ${broker}`;
+        connectionStatus.textContent = `CONNECTED TO BROKER: ${retryCount + 1}`;
         connectionStatus.className = 'connection-status success';
 
         mqttClient.subscribe('fireDetection/mq2');
