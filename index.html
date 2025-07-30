@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -335,37 +337,43 @@
 
         // Thresholds
         const smokeThreshold = 2800;
-
-        const mqttBrokers = [
+const mqttBrokers = [
     'wss://test.mosquitto.org:8081/mqtt',
+    'wss://broker.emqx.io:8084/mqtt',
     'wss://broker.hivemq.com:8884/mqtt',
     'wss://mqtt.eclipseprojects.io:443/mqtt'
 ];
 
-let mqttClient = null;
 let currentBrokerIndex = 0;
+let retryCount = 0;
+const maxRetriesPerBroker = 3;
+let mqttClient = null;
 let connected = false;
 
+function tryNextBroker() {
+    retryCount = 0;
+    currentBrokerIndex = (currentBrokerIndex + 1) % mqttBrokers.length;
+    setTimeout(() => initializeMqtt(), 500); // small delay before switching
+}
+
 function initializeMqtt() {
-    if (currentBrokerIndex >= mqttBrokers.length) {
-        connectionStatus.textContent = 'ALL MQTT CONNECTIONS FAILED';
-        connectionStatus.className = 'connection-status error';
-        updateStatus('UNABLE TO CONNECT TO ANY BROKER', 'danger');
-        return;
-    }
+    if (connected) return;
 
     const broker = mqttBrokers[currentBrokerIndex];
-    connectionStatus.textContent = `TRYING MQTT BROKER (${broker})...`;
+    connectionStatus.textContent = `Trying Broker (${retryCount + 1}/3): ${broker}`;
     connectionStatus.className = 'connection-status loading';
 
-    mqttClient = mqtt.connect(broker);
+    mqttClient = mqtt.connect(broker, {
+        connectTimeout: 5000,       // fail fast after 5 seconds
+        reconnectPeriod: 0          // don't retry internally
+    });
 
     mqttClient.on('connect', () => {
+        connected = true;
         console.log(`✅ Connected to MQTT broker: ${broker}`);
-        connectionStatus.textContent = 'MQTT CONNECTION ESTABLISHED';
+        connectionStatus.textContent = `CONNECTED TO BROKER: ${broker}`;
         connectionStatus.className = 'connection-status success';
 
-        connected = true;
         mqttClient.subscribe('fireDetection/mq2');
         mqttClient.subscribe('fireDetection/flame');
         updateStatus('SYSTEM ONLINE AWAITING DATA', 'safe');
@@ -378,24 +386,26 @@ function initializeMqtt() {
         else if (topic === 'fireDetection/flame') handleFlameMessage(msg);
     });
 
-    mqttClient.on('error', (error) => {
-        console.error(`MQTT Error on ${broker}:`, error);
+    mqttClient.on('error', () => {
         if (!connected) {
-            mqttClient.end(true); // Cleanup
-            currentBrokerIndex++;
-            setTimeout(initializeMqtt, 1000); // Try next broker
+            mqttClient.end(true);
+            retryCount++;
+            if (retryCount < maxRetriesPerBroker) {
+                console.warn(`⚠️ Retry ${retryCount} for broker ${broker}`);
+                setTimeout(() => initializeMqtt(), 500);
+            } else {
+                console.warn(`❌ Broker failed after 3 tries: ${broker}`);
+                tryNextBroker();
+            }
         }
     });
 
     mqttClient.on('close', () => {
-        if (!connected) {
-            connectionStatus.textContent = 'MQTT CONNECTION FAILED';
-            connectionStatus.className = 'connection-status error';
-        } else {
-            connectionStatus.textContent = 'MQTT CONNECTION LOST';
-            connectionStatus.className = 'connection-status warning';
-            updateStatus('CONNECTION LOST - TRYING TO RECONNECT', 'warning');
-        }
+        if (!connected) return;
+        console.warn(`🔌 Disconnected from broker: ${broker}`);
+        connected = false;
+        updateStatus('DISCONNECTED - CYCLING BROKERS', 'warning');
+        tryNextBroker();
     });
 }
 
