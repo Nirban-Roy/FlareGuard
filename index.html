@@ -336,51 +336,69 @@
         // Thresholds
         const smokeThreshold = 2800;
 
-        // Initialize MQTT Connection
-        function initializeMqtt() {
-            connectionStatus.textContent = 'CONNECTING TO MQTT BROKER...';
-            connectionStatus.className = 'connection-status loading';
+        const mqttBrokers = [
+    'wss://test.mosquitto.org:8081/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://mqtt.eclipseprojects.io:443/mqtt'
+];
 
-            mqttClient = mqtt.connect(mqttBroker);
+let mqttClient = null;
+let currentBrokerIndex = 0;
+let connected = false;
 
-            mqttClient.on('connect', () => {
-                console.log('✅ Connected to MQTT broker');
-                connectionStatus.textContent = 'MQTT CONNECTION ESTABLISHED';
-                connectionStatus.className = 'connection-status success';
-                
-                // Subscribe to topics
-                mqttClient.subscribe('fireDetection/mq2');
-                mqttClient.subscribe('fireDetection/flame');
-                
-                console.log('✅ Subscribed to topics');
-                updateStatus('SYSTEM ONLINE AWAITING DATA', 'safe');
-            });
+function initializeMqtt() {
+    if (currentBrokerIndex >= mqttBrokers.length) {
+        connectionStatus.textContent = 'ALL MQTT CONNECTIONS FAILED';
+        connectionStatus.className = 'connection-status error';
+        updateStatus('UNABLE TO CONNECT TO ANY BROKER', 'danger');
+        return;
+    }
 
-            mqttClient.on('message', (topic, message) => {
-                const msg = message.toString();
-                console.log(`📩 ${topic} → ${msg}`);
+    const broker = mqttBrokers[currentBrokerIndex];
+    connectionStatus.textContent = `TRYING MQTT BROKER (${broker})...`;
+    connectionStatus.className = 'connection-status loading';
 
-                if (topic === 'fireDetection/mq2') {
-                    handleSmokeMessage(msg);
-                } else if (topic === 'fireDetection/flame') {
-                    handleFlameMessage(msg);
-                }
-            });
+    mqttClient = mqtt.connect(broker);
 
-            mqttClient.on('error', (error) => {
-                console.error('MQTT Error:', error);
-                connectionStatus.textContent = 'MQTT CONNECTION FAILED';
-                connectionStatus.className = 'connection-status error';
-                updateStatus('CONNECTION ERROR - RETRYING', 'danger');
-            });
+    mqttClient.on('connect', () => {
+        console.log(`✅ Connected to MQTT broker: ${broker}`);
+        connectionStatus.textContent = 'MQTT CONNECTION ESTABLISHED';
+        connectionStatus.className = 'connection-status success';
 
-            mqttClient.on('close', () => {
-                console.log('MQTT Connection closed');
-                connectionStatus.textContent = 'MQTT CONNECTION LOST';
-                connectionStatus.className = 'connection-status loading';
-                updateStatus('CONNECTION LOST - RECONNECTING', 'warning');
-            });
+        connected = true;
+        mqttClient.subscribe('fireDetection/mq2');
+        mqttClient.subscribe('fireDetection/flame');
+        updateStatus('SYSTEM ONLINE AWAITING DATA', 'safe');
+    });
+
+    mqttClient.on('message', (topic, message) => {
+        const msg = message.toString();
+        console.log(`📩 ${topic} → ${msg}`);
+        if (topic === 'fireDetection/mq2') handleSmokeMessage(msg);
+        else if (topic === 'fireDetection/flame') handleFlameMessage(msg);
+    });
+
+    mqttClient.on('error', (error) => {
+        console.error(`MQTT Error on ${broker}:`, error);
+        if (!connected) {
+            mqttClient.end(true); // Cleanup
+            currentBrokerIndex++;
+            setTimeout(initializeMqtt, 1000); // Try next broker
         }
+    });
+
+    mqttClient.on('close', () => {
+        if (!connected) {
+            connectionStatus.textContent = 'MQTT CONNECTION FAILED';
+            connectionStatus.className = 'connection-status error';
+        } else {
+            connectionStatus.textContent = 'MQTT CONNECTION LOST';
+            connectionStatus.className = 'connection-status warning';
+            updateStatus('CONNECTION LOST - TRYING TO RECONNECT', 'warning');
+        }
+    });
+}
+
 
         // Handle smoke sensor messages
         function handleSmokeMessage(msg) {
