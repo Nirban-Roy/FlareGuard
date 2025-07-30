@@ -295,7 +295,7 @@
             <h2>System Monitor</h2>
             
             <div class="connection-status loading" id="connectionStatus">
-                CONNECTING TO MQTT BROKER...
+                CONNECTING TO SERVER...
             </div>
             
             <div class="status-indicator safe" id="statusIndicator">
@@ -347,31 +347,42 @@ const mqttBrokers = [
 let currentBrokerIndex = 0;
 let retryCount = 0;
 const maxRetriesPerBroker = 3;
-let mqttClient = null;
-let connected = false;
+let isConnected = false;
 
 function tryNextBroker() {
+    if (mqttClient) {
+        mqttClient.end(true);
+        mqttClient = null;
+    }
+
     retryCount = 0;
     currentBrokerIndex = (currentBrokerIndex + 1) % mqttBrokers.length;
-    setTimeout(() => initializeMqtt(), 500); // short delay before switching to next
+    setTimeout(() => initializeMqtt(), 500);
 }
 
 function initializeMqtt() {
-    if (connected) return;
+    if (isConnected) return;
 
     const broker = mqttBrokers[currentBrokerIndex];
-    connectionStatus.textContent = `Trying Server (${retryCount + 1}/${maxRetriesPerBroker})`;
+    const attemptNumber = retryCount + 1;
+    connectionStatus.textContent = `Trying to connect`;
     connectionStatus.className = 'connection-status loading';
+    statusIndicator.textContent = "RECONNECTING";
+    statusIndicator.className = "status-indicator warning";
 
     mqttClient = mqtt.connect(broker, {
-        connectTimeout: 7000,      // 7 seconds timeout per try (slightly increased)
-        reconnectPeriod: 0         // no internal retry
+        connectTimeout: 7000,
+        reconnectPeriod: 0
     });
 
+    let didConnect = false;
+
     mqttClient.on('connect', () => {
-        connected = true;
+        didConnect = true;
+        isConnected = true;
+
         console.log(`✅ Connected to server: ${broker}`);
-        connectionStatus.textContent = `✅ Connected to Server (${retryCount + 1})`;
+        connectionStatus.textContent = `✅ Connected to Server`;
         connectionStatus.className = 'connection-status success';
 
         mqttClient.subscribe('fireDetection/mq2');
@@ -387,12 +398,14 @@ function initializeMqtt() {
     });
 
     mqttClient.on('error', () => {
-        if (!connected) {
-            mqttClient.end(true);  // Clean disconnect
+        if (!didConnect) {
+            mqttClient.end(true);
+            mqttClient = null;
+
             retryCount++;
             if (retryCount < maxRetriesPerBroker) {
-                console.warn(`⚠️ Retry ${retryCount} for server`);
-                setTimeout(() => initializeMqtt(), 1000); // wait 1s before retrying
+                console.warn(`⚠️ Retry ${retryCount}/${maxRetriesPerBroker} for server`);
+                setTimeout(() => initializeMqtt(), 1000);
             } else {
                 console.warn(`❌ Server failed after ${maxRetriesPerBroker} tries`);
                 tryNextBroker();
@@ -401,13 +414,29 @@ function initializeMqtt() {
     });
 
     mqttClient.on('close', () => {
-        if (!connected) return;
-        console.warn(`🔌 Disconnected from server`);
-        connected = false;
-        updateStatus('DISCONNECTED - CYCLING SERVERS', 'warning');
-        tryNextBroker();
+        if (!didConnect) {
+            // Only handle retries here if not connected
+            mqttClient.end(true);
+            mqttClient = null;
+
+            retryCount++;
+            if (retryCount < maxRetriesPerBroker) {
+                console.warn(`🔁 Retry ${retryCount}/${maxRetriesPerBroker} after close`);
+                setTimeout(() => initializeMqtt(), 1000);
+            } else {
+                console.warn(`❌ Server failed after ${maxRetriesPerBroker} tries (via close)`);
+                tryNextBroker();
+            }
+        } else {
+            // If previously connected and then closed (e.g., connection loss)
+            console.warn(`🔌 Disconnected from server: ${broker}`);
+            isConnected = false;
+            updateStatus('DISCONNECTED - CYCLING SERVERS', 'warning');
+            tryNextBroker();
+        }
     });
 }
+
 
         // Handle smoke sensor messages
         function handleSmokeMessage(msg) {
